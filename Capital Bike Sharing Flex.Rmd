@@ -1,0 +1,170 @@
+---
+title: "Capital Bike Sharing: Analysis on Number of Bike Rented"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(shiny)
+library(shinydashboard)
+library(dplyr) # untuk transformasi data
+library(tidyr) # untuk cleansing data
+library(ggplot2) # untuk visualisasi
+library(ggpubr) # untuk export plot
+library(scales) # untuk custom keterangan axis atau lainnya
+library(glue) # untuk custom informasi saat plot interaktif
+library(plotly) # untuk membuat plot menjadi interaktif
+library(lubridate) # untuk working with datetime
+library(treemapify) # untuk membuat treemap
+```
+
+```{r}
+dataset <- read.csv("data_input/day.csv")
+options(scipen = 9999)
+
+dataset <- dataset %>% 
+  mutate(season = as.character(season),
+         holiday = as.character(holiday),
+         weekday = as.character(weekday),
+         weathersit = as.character(weathersit))
+
+dataset$season <- sapply(X = as.character(dataset$season),
+                           FUN = switch, 
+                           "1" = "Spring",
+                           "2" = "Summer", 
+                           "3" = "Fall", 
+                           "4" = "Winter")
+dataset$holiday <- sapply(X = as.character(dataset$holiday),
+                           FUN = switch, 
+                           "0" = "No",
+                           "1" = "Yes")
+dataset$workingday <- sapply(X = as.character(dataset$workingday),
+                           FUN = switch, 
+                           "0" = "Weekend",
+                           "1" = "Weekday")
+dataset$weathersit <- sapply(X = as.character(dataset$weathersit),
+                           FUN = switch, 
+                           "1" = "Clear / Partly Cloudy",
+                           "2" = "Mist + Cloudy",
+                           "3" = "Light Snow / Light Rain + Thunderstorm",
+                           "4" = "Heavy Rain + Ice Pallets + Thunderstorm + Mist / Snow + Mist")
+dataset$yr <- sapply(X = as.character(dataset$yr),
+                           FUN = switch, 
+                           "0" = "2011",
+                           "1" = "2012")
+
+# convert into datetime datatype and extracting year, month and day
+dataset$dteday <- ymd(dataset$dteday)
+dataset$mnth <- month(dataset$dteday, label = T, abbr = F)
+dataset$weekday <- wday(dataset$dteday, label = T, abbr = F)
+```
+
+
+Column {data-width=300}
+-----------------------------------------------------------------------
+
+### By Season
+
+```{r}
+  bike3 <- dataset %>%
+    group_by(season,yr) %>%
+    summarise(total_bike = sum(cnt)) %>% 
+    ungroup() %>% 
+    mutate(label3 = glue("{season} {yr}
+                         Number of Bike Rented: {total_bike}"))
+  
+  plot3 <- ggplot(bike3, aes(x = reorder(season, -total_bike), y = total_bike, text = label3, fill = yr))+
+    geom_bar(stat = "identity", position = "dodge")+
+    labs(
+      title =  "Bike Rented",
+      x = NULL,
+      y = "Number of Bike Rented"
+    ) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5)) 
+  
+  ggplotly(plot3, tooltip = "label3")
+
+```
+### By Weekday
+
+```{r}
+  bike1 <- dataset %>%
+    group_by(weekday) %>%
+    summarise(total_bike = sum(cnt)) %>% 
+    ungroup() %>% 
+    mutate(label1 = glue("{weekday}
+                         Number of Bike Rented: {total_bike}"))
+  
+  plot1 <- ggplot(bike1, aes(x = weekday, y = total_bike, text = label1, color = total_bike))+
+    geom_point(size = 5) +
+    geom_segment(aes(x = weekday, 
+                     xend = weekday,
+                     y = 0, 
+                     yend = total_bike),
+                 size = 3) +
+    scale_color_gradient(low = "#33a0d1",
+                         high = "black") +
+    labs(
+      title =  "Bike Rented",
+      x = NULL,
+      y = "Number of Bike Rented"
+    ) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5)) 
+  
+  ggplotly(plot1, tooltip = "label1")
+
+```
+
+
+Column {data-width=400}
+-----------------------------------------------------------------------
+
+### Trend Analysis
+
+```{r}
+  bike2 <- dataset %>%
+    mutate(label2 = glue("Date: {dteday}
+                      Number of Bike Rented = {cnt}}"))
+  
+  plot2 <- ggplot(bike2, aes(x = dteday, y = cnt))+
+    geom_line(col = "#c52d30") +
+    geom_point(aes(text = label2), col="black", size = 0.5) +
+    scale_y_continuous(labels = comma) +
+    labs(
+      title =  "Bike Rented",
+      x = NULL,
+      y = "Number of Bike Rented"
+    ) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5)) 
+  
+  ggplotly(plot2, tooltip = "label2")
+```
+
+### By Month
+
+```{r}
+  bike4 <- dataset %>%
+    group_by(mnth,yr) %>%
+    summarise(total_bike = sum(cnt)) %>% 
+    ungroup() %>% 
+    mutate(label4 = glue("{mnth} {yr}
+                         Number of Bike Rented: {total_bike}"))
+  
+  plot4 <- ggplot(bike4, aes(x = mnth, y = total_bike, text = label4, fill = yr))+
+    geom_bar(stat = "identity", position = "dodge")+
+    labs(
+      title =  "Bike Rented",
+      x = NULL,
+      y = "Number of Bike Rented"
+    ) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5)) 
+  
+  ggplotly(plot4, tooltip = "label4")
+```
+
